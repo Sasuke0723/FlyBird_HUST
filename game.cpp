@@ -4,7 +4,7 @@
 #include <QIcon>
 #include <QFont>
 
-Game::Game(QWidget* parent) : QGraphicsView(parent), score(0), gameState(0) {
+Game::Game(QWidget* parent) : QGraphicsView(parent), score(0), gameState(0), countdownTimer(new QTimer(this)), countdownValue(0), countdownText(nullptr) {
     scene = new QGraphicsScene(this);
     setScene(scene);
 
@@ -43,8 +43,8 @@ Game::Game(QWidget* parent) : QGraphicsView(parent), score(0), gameState(0) {
     startText = new QGraphicsTextItem("按空格键开始游戏");
     startText->setDefaultTextColor(Qt::red);  // 改为红色
     startText->setFont(QFont("Microsoft YaHei", 16, QFont::Bold));
-    startText->setPos(width()/2 - startText->boundingRect().width()/2,
-                      height()/2 - 30);
+    startText->setPos(width() / 2 - startText->boundingRect().width() / 2,
+        height() / 2 - 30);
     scene->addItem(startText);
 
     // 初始状态为等待开始，定时器不启动
@@ -69,6 +69,8 @@ void Game::startGame() {
     // 启动游戏循环
     timer->start(20);
     bird->reset();
+
+    connect(countdownTimer, &QTimer::timeout, this, &Game::updateCountdown);
 }
 
 void Game::keyPressEvent(QKeyEvent* event) {
@@ -76,7 +78,7 @@ void Game::keyPressEvent(QKeyEvent* event) {
         if (gameState == 0) {      // 等待开始状态
             startGame();
         }
-        else if (gameState == 1) { // 游戏中状态
+        else if (gameState == 1 && !countdownTimer->isActive()) { // 游戏中状态
             bird->flap();
         }
         else if (gameState == 2) { // 游戏结束状态
@@ -133,7 +135,46 @@ void Game::restartGame()
     // 注意：这里不再添加开始提示，确保只出现一次
 
     // 启动定时器，直接开始游戏
-    timer->start(20);
+    //timer->start(20);
+    countdownValue = 3;  // 倒计时初始值设为3
+    // 创建/更新倒计时文本，显示在屏幕正中间
+    if (countdownText) {
+        scene->removeItem(countdownText);
+        delete countdownText;
+    }
+    countdownText = new QGraphicsTextItem(QString::number(countdownValue));
+    countdownText->setDefaultTextColor(Qt::red);  // 红色字体更醒目
+    countdownText->setFont(QFont("Arial", 48, QFont::Bold));  // 大号粗体
+    // 居中显示
+    qreal x = (this->width() - countdownText->boundingRect().width()) / 2;
+    qreal y = (this->height() - countdownText->boundingRect().height()) / 2;
+    countdownText->setPos(x, y);
+    countdownText->setZValue(2);  // 显示在最上层
+    scene->addItem(countdownText);
+
+    // 启动倒计时定时器（1秒触发一次）
+    countdownTimer->start(1000);
+}
+
+// 新增：倒计时更新槽函数
+void Game::updateCountdown() {
+    countdownValue--;
+    if (countdownValue > 0) {
+        // 更新倒计时数字
+        countdownText->setPlainText(QString::number(countdownValue));
+        // 重新居中（数字宽度变化）
+        qreal x = (this->width() - countdownText->boundingRect().width()) / 2;
+        qreal y = (this->height() - countdownText->boundingRect().height()) / 2;
+        countdownText->setPos(x, y);
+    }
+    else {
+        // 倒计时结束：移除倒计时文本，启动游戏主循环
+        scene->removeItem(countdownText);
+        delete countdownText;
+        countdownText = nullptr;
+        countdownTimer->stop();  // 停止倒计时定时器
+        timer->start(20);        // 启动游戏循环
+    }
 }
 
 void Game::gameLoop() {
@@ -165,7 +206,7 @@ void Game::gameLoop() {
             QGraphicsPixmapItem* gameOverItem = scene->addPixmap(QPixmap(":/assets/images/gameover.png"));
             // 将 Game Over 画面放在中间位置
             gameOverItem->setPos(this->width() / 2 - gameOverItem->pixmap().width() / 2,
-                                 this->height() / 2 - gameOverItem->pixmap().height() / 2);
+                this->height() / 2 - gameOverItem->pixmap().height() / 2);
 
             // 提示按空格重新游戏 - 字体改小，颜色改黑
             QGraphicsTextItem* restartText = new QGraphicsTextItem("按空格键重新开始");
@@ -173,7 +214,7 @@ void Game::gameLoop() {
             restartText->setFont(QFont("Microsoft YaHei", 10, QFont::Bold));  // 字体改小为10号
             // 放在中间
             restartText->setPos(this->width() / 2 - restartText->boundingRect().width() / 2,
-                                this->height() / 2 + gameOverItem->pixmap().height() / 2 + 5);  // 位置微调
+                this->height() / 2 + gameOverItem->pixmap().height() / 2 + 5);  // 位置微调
 
             scene->addItem(restartText);
             return;
