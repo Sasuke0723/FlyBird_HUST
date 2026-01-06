@@ -5,21 +5,21 @@
 #include <QGraphicsPixmapItem>
 
 class Pipe : public QGraphicsItemGroup {
-public:
-	Pipe();
-	void movePipe();
-	QRectF boundingRect() const override;  // 自定义边界矩形
-	QPainterPath shape() const override;   // 自定义形状，便于碰撞检测
+private:
+    QGraphicsPixmapItem* topPipe;
+    QGraphicsPixmapItem* bottomPipe;
+    int speed;
+    int gap;
+    int topHeight;
+    int bottomHeight;
 
 public:
-	bool isPassed;
-private:
-	QGraphicsPixmapItem* topPipe;
-	QGraphicsPixmapItem* bottomPipe;
-	int speed;
-	int gap;
-	int topHeight;
-	int bottomHeight;
+    Pipe();
+    void movePipe();
+    QRectF boundingRect() const override;  // 自定义边界矩形
+    QPainterPath shape() const override;   // 自定义形状，便于碰撞检测
+    bool isPassed;
+
 };
 
 #endif // PIPE_H
