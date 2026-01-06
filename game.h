@@ -25,7 +25,7 @@ private:
     int gameState;
     QList<Pipe*> pipes;
     int score;
-    bool isGameOver; // 完全保留，不做任何修改
+    bool isGameOver;
     void startGame();
 };
 
