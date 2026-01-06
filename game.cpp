@@ -2,11 +2,11 @@
 #include <QKeyEvent>
 #include <QGraphicsTextItem>
 #include <QIcon>
-// 新增：引入字体和颜色头文件（可选，用于优化文字样式）
 #include <QFont>
+// 新增：引入颜色头文件（仅用于设置文字半透明，不修改其他逻辑）
 #include <QColor>
 
-Game::Game(QWidget* parent) : QGraphicsView(parent), score(0),isGameOver(false) {
+Game::Game(QWidget* parent) : QGraphicsView(parent), score(0), gameState(0) {
     scene = new QGraphicsScene(this);
     setScene(scene);
 
@@ -16,12 +16,12 @@ Game::Game(QWidget* parent) : QGraphicsView(parent), score(0),isGameOver(false) 
     setWindowIcon(icon);
 
     bird = new Bird();
-    scene->addItem(bird);
+    // 先不添加到场景，等游戏开始再加
+    bird->setPos(100, 300);
 
     // 定时器，控制游戏循环
     timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, &Game::gameLoop);
-    timer->start(20);
 
     setFixedSize(400, 600);
     scene->setSceneRect(0, 0, 400, 600);
@@ -33,62 +33,94 @@ Game::Game(QWidget* parent) : QGraphicsView(parent), score(0),isGameOver(false) 
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
     // 创建并显示分数文本项
-    scoreText = new QGraphicsTextItem(QString("Score: %1").arg(score));
+    scoreText = new QGraphicsTextItem(QString("分数: %1").arg(score));
     //放在最前面
     scoreText->setZValue(1);
     scoreText->setDefaultTextColor(Qt::white);
-    scoreText->setFont(QFont("Arial", 20));
+    scoreText->setFont(QFont("Microsoft YaHei", 20));
     scoreText->setPos(10, 10);
     scene->addItem(scoreText);
 
-    // ========== 新增：竖向绘制6个制作人名字（核心修改） ==========
-    // 1. 定义6个制作人名字的列表（新增第6个名字）
+    // 添加开始提示 - 修改为红色
+    startText = new QGraphicsTextItem("按空格键开始游戏");
+    startText->setDefaultTextColor(Qt::red);  // 改为红色
+    startText->setFont(QFont("Microsoft YaHei", 16, QFont::Bold));
+    startText->setPos(width()/2 - startText->boundingRect().width()/2,
+                      height()/2 - 30);
+    scene->addItem(startText);
+
+    // ========== 仅新增：6个制作人名字竖向显示（不修改其他任何代码） ==========
+    // 1. 定义6个制作人名字列表
     QStringList producerNames = {
-        "史喆元",   // 第1个名字
-        "黄骊文",   // 第2个名字
-        "吴钟荣",   // 第3个名字
-        "曹灿",   // 第4个名字
-        "宋正阳",   // 第5个名字
-        "熊圣洲"    // 第6个名字
+        "史喆元",
+        "黄骊文",
+        "吴钟荣",
+        "曹灿",
+        "宋正阳",
+        "熊圣洲"
     };
 
-    // 2. 配置通用样式（字体、颜色、层级）
-    QFont producerFont("Arial", 18, QFont::Bold); // 字体样式
-    QColor textColor(255, 255, 255, 200);         // 白色半透明
+    // 2. 配置名字文字样式（适配中文、半透明）
+    QFont producerFont("Microsoft YaHei", 18, QFont::Bold); // 微软雅黑+加粗
+    QColor textColor(255, 255, 255, 200); // 白色半透明（不遮挡游戏元素）
 
-    // 3. 循环创建每个名字的文本项，竖向排列
-    int nameSpacing = 32; // 6个名字建议微调间距（避免重叠，18号字体推荐32）
-    int startY = this->height() - 30; // 第一个名字的初始Y坐标（最下方）
+    // 3. 计算排列参数（竖向排列、右对齐）
+    int nameSpacing = 32; // 名字间距（适配18号字体，避免重叠）
+    int startY = this->height() - 30; // 第一个名字的初始Y坐标（窗口底部）
 
+    // 4. 循环创建每个名字的文本项
     for (int i = 0; i < producerNames.size(); ++i) {
-        // 创建单个名字的文本项
         QGraphicsTextItem* producerText = new QGraphicsTextItem(producerNames[i]);
 
-        // 设置通用样式
-        producerText->setZValue(0);                // 层级（不遮挡游戏元素）
-        producerText->setDefaultTextColor(textColor); // 文字颜色
-        producerText->setFont(producerFont);       // 字体样式
+        // 设置样式
+        producerText->setZValue(0); // 层级低于分数/小鸟，不遮挡核心元素
+        producerText->setDefaultTextColor(textColor);
+        producerText->setFont(producerFont);
 
-        // 计算坐标：
-        // X：窗口宽度 - 文字宽度 - 10（右内边距，所有名字右对齐）
-        qreal textX = this->width() - producerText->boundingRect().width() - 10;
-        // Y：初始Y坐标 - 间距×索引（实现从上到下竖向排列）
-        qreal textY = startY - (i * nameSpacing);
+        // 计算坐标：右对齐（X=窗口宽度-文字宽度-内边距），竖向排列（Y递减）
+        qreal textX = this->width() - producerText->boundingRect().width() - 10; // 右内边距10px
+        qreal textY = startY - (i * nameSpacing); // 向上排列
 
-        // 设置位置并添加到场景
+        // 添加到场景
         producerText->setPos(textX, textY);
         scene->addItem(producerText);
     }
-    // ========== 6个制作人名字绘制结束 ==========
+    // ========== 制作人名字绘制结束 ==========
+
+    // 初始状态为等待开始，定时器不启动
+    timer->stop();
+}
+
+void Game::startGame() {
+    gameState = 1;  // 切换到游戏中状态
+
+    // 移除开始提示（只出现一次）
+    if (startText) {
+        scene->removeItem(startText);
+        delete startText;
+        startText = nullptr;  // 设置为空指针，确保只出现一次
+    }
+
+    // 将小鸟添加到场景
+    if (!bird->scene()) {
+        scene->addItem(bird);
+    }
+
+    // 启动游戏循环
+    timer->start(20);
+    bird->reset();
 }
 
 void Game::keyPressEvent(QKeyEvent* event) {
     if (event->key() == Qt::Key_Space) {
-        if (isGameOver) {
-            restartGame();  // 如果游戏结束，按空格键重置游戏
+        if (gameState == 0) {      // 等待开始状态
+            startGame();
         }
-        else {
-            bird->flap();  // 如果游戏在进行，按空格键让小鸟跳跃
+        else if (gameState == 1) { // 游戏中状态
+            bird->flap();
+        }
+        else if (gameState == 2) { // 游戏结束状态
+            restartGame();
         }
     }
 }
@@ -108,33 +140,48 @@ void Game::restartGame()
 
     // 重置分数
     score = 0;
-    scoreText->setPlainText(QString("Score: %1").arg(score));
+    scoreText->setPlainText(QString("分数: %1").arg(score));
 
-    // 移除 Game Over 画面
+    // 移除 Game Over 画面和重新开始提示
     QList<QGraphicsItem*> items = scene->items();
+    QList<QGraphicsItem*> itemsToRemove;  // 先收集要删除的项
+
     for (QGraphicsItem* item : items) {
         if (QGraphicsPixmapItem* pixmapItem = dynamic_cast<QGraphicsPixmapItem*>(item))
         {
             if (pixmapItem->pixmap().cacheKey() == QPixmap(":/assets/images/gameover.png").cacheKey())
             {
-                scene->removeItem(pixmapItem);
-                delete pixmapItem;
+                itemsToRemove.append(pixmapItem);
             }
         }
         if (QGraphicsTextItem* textItem = dynamic_cast<QGraphicsTextItem*>(item)) {
             if (textItem->toPlainText() == "按空格键重新开始") {
-                scene->removeItem(textItem);
-                delete textItem;
+                itemsToRemove.append(textItem);
             }
         }
     }
 
-    // 重置游戏状态
-    isGameOver = false;
+    // 安全删除收集的项目
+    for (QGraphicsItem* item : itemsToRemove) {
+        scene->removeItem(item);
+        delete item;
+    }
+
+    // 重置游戏状态为游戏中，直接开始游戏
+    gameState = 1;
+
+    // 注意：这里不再添加开始提示，确保只出现一次
+
+    // 启动定时器，直接开始游戏
     timer->start(20);
 }
 
 void Game::gameLoop() {
+    // 只在游戏中状态运行
+    if (gameState != 1) {
+        return;
+    }
+
     bird->updatePosition();
 
     // 生成新的管道
@@ -153,16 +200,20 @@ void Game::gameLoop() {
         // 检测与小鸟的碰撞
         if (bird->collidesWithItem(pipe)) {
             timer->stop();
+            gameState = 2;  // 设置为游戏结束状态
+
             QGraphicsPixmapItem* gameOverItem = scene->addPixmap(QPixmap(":/assets/images/gameover.png"));
             // 将 Game Over 画面放在中间位置
-            gameOverItem->setPos(this->width() / 2 - gameOverItem->pixmap().width() / 2, this->height() / 2 - gameOverItem->pixmap().height() / 2);
-            isGameOver = true;
-            //提示按空格重新游戏，用QGraphicsTextItem
+            gameOverItem->setPos(this->width() / 2 - gameOverItem->pixmap().width() / 2,
+                                 this->height() / 2 - gameOverItem->pixmap().height() / 2);
+
+            // 提示按空格重新游戏 - 字体改小，颜色改黑
             QGraphicsTextItem* restartText = new QGraphicsTextItem("按空格键重新开始");
-            restartText->setDefaultTextColor(Qt::black);
-            restartText->setFont(QFont("Arial", 12, QFont::Bold));
-            //放在中间
-            restartText->setPos(this->width() / 2 - restartText->boundingRect().width() / 2, this->height() / 2 + gameOverItem->pixmap().height() / 2 + 10);
+            restartText->setDefaultTextColor(Qt::black);  // 黑色
+            restartText->setFont(QFont("Microsoft YaHei", 10, QFont::Bold));  // 字体改小为10号
+            // 放在中间
+            restartText->setPos(this->width() / 2 - restartText->boundingRect().width() / 2,
+                                this->height() / 2 + gameOverItem->pixmap().height() / 2 + 5);  // 位置微调
 
             scene->addItem(restartText);
             return;
@@ -175,7 +226,7 @@ void Game::gameLoop() {
             pipe->isPassed = true;  // 确保不会重复加分
 
             // 更新分数显示
-            scoreText->setPlainText(QString("Score: %1").arg(score));
+            scoreText->setPlainText(QString("分数: %1").arg(score));
         }
 
         // 如果管道移出了屏幕，将其从场景和列表中删除
