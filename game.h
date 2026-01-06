@@ -31,5 +31,4 @@ private:
 
 #endif // GAME_H
 
-#endif // GAME_H
 
