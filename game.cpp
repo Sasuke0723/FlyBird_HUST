@@ -46,8 +46,19 @@ Game::Game(QWidget* parent) : QGraphicsView(parent), score(0), gameState(0), cou
     startText->setDefaultTextColor(Qt::red);  // 改为红色
     startText->setFont(QFont("Microsoft YaHei", 16, QFont::Bold));
     startText->setPos(width() / 2 - startText->boundingRect().width() / 2,
-        height() / 2 - 30);
+                      height() / 2 - 30);
     scene->addItem(startText);
+
+    fpsText = new QGraphicsTextItem("FPS: 0");
+    fpsText->setDefaultTextColor(Qt::yellow);
+    fpsText->setFont(QFont("Consolas", 12, QFont::Bold));
+    fpsText->setZValue(2);        // 永远在最前
+    fpsText->setPos(300, 10);     // 右上角
+    scene->addItem(fpsText);
+
+    fpsTimer.start();
+
+
 
     // ========== 仅新增：6个制作人名字竖向显示（不修改其他任何代码） ==========
     // 1. 定义6个制作人名字列表
@@ -107,7 +118,7 @@ void Game::startGame() {
     }
 
     // 启动游戏循环
-    timer->start(20);
+    timer->start(16);
     bird->reset();
 
     connect(countdownTimer, &QTimer::timeout, this, &Game::updateCountdown);
@@ -130,7 +141,7 @@ void Game::keyPressEvent(QKeyEvent* event) {
 void Game::restartGame()
 {
     // 清除场景中的管道和文本
-    for (Pipe* pipe : pipes) {
+    for (Pipe* pipe : std::as_const(pipes)){
         scene->removeItem(pipe);
         delete pipe;
     }
@@ -148,7 +159,7 @@ void Game::restartGame()
     QList<QGraphicsItem*> items = scene->items();
     QList<QGraphicsItem*> itemsToRemove;  // 先收集要删除的项
 
-    for (QGraphicsItem* item : items) {
+    for (QGraphicsItem* item : std::as_const(items)) {
         if (QGraphicsPixmapItem* pixmapItem = dynamic_cast<QGraphicsPixmapItem*>(item))
         {
             if (pixmapItem->pixmap().cacheKey() == QPixmap(":/assets/images/gameover.png").cacheKey())
@@ -213,11 +224,20 @@ void Game::updateCountdown() {
         delete countdownText;
         countdownText = nullptr;
         countdownTimer->stop();  // 停止倒计时定时器
-        timer->start(20);        // 启动游戏循环
+        timer->start(16);        // 启动游戏循环
     }
 }
 
 void Game::gameLoop() {
+
+    // ===== FPS 统计 =====
+    frameCount++;
+    if (fpsTimer.elapsed() >= 1000) {
+        double fps = frameCount * 1000.0 / fpsTimer.elapsed();
+        fpsText->setPlainText(QString("FPS: %1").arg(fps, 0, 'f', 1));
+        frameCount = 0;
+        fpsTimer.restart();
+    }
     // 只在游戏中状态运行
     if (gameState != 1) {
         return;
@@ -246,7 +266,7 @@ void Game::gameLoop() {
             QGraphicsPixmapItem* gameOverItem = scene->addPixmap(QPixmap(":/assets/images/gameover.png"));
             // 将 Game Over 画面放在中间位置
             gameOverItem->setPos(this->width() / 2 - gameOverItem->pixmap().width() / 2,
-                this->height() / 2 - gameOverItem->pixmap().height() / 2);
+                                 this->height() / 2 - gameOverItem->pixmap().height() / 2);
 
             // 提示按空格重新游戏 - 字体改小，颜色改黑
             QGraphicsTextItem* restartText = new QGraphicsTextItem("按空格键重新开始");
@@ -254,7 +274,7 @@ void Game::gameLoop() {
             restartText->setFont(QFont("Microsoft YaHei", 10, QFont::Bold));  // 字体改小为10号
             // 放在中间
             restartText->setPos(this->width() / 2 - restartText->boundingRect().width() / 2,
-                this->height() / 2 + gameOverItem->pixmap().height() / 2 + 5);  // 位置微调
+                                this->height() / 2 + gameOverItem->pixmap().height() / 2 + 5);  // 位置微调
 
             scene->addItem(restartText);
             return;
@@ -281,4 +301,3 @@ void Game::gameLoop() {
         }
     }
 }
-
