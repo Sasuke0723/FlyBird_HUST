@@ -6,8 +6,6 @@
 #include <QTimer>
 #include "bird.h"
 #include "pipe.h"
-// 新增：引入文字项头文件（Qt图形视图的文字组件）
-#include <QGraphicsTextItem>
 
 class Game : public QGraphicsView {
     Q_OBJECT
@@ -21,13 +19,17 @@ private slots:
 private:
     QGraphicsScene* scene;
     QGraphicsTextItem* scoreText;
-    // 新增：制作人名字文本项（作为成员变量，方便控制）
-    QGraphicsTextItem* producerText;
     Bird* bird;
     QTimer* timer;
+    QGraphicsTextItem* startText;
+    int gameState;
     QList<Pipe*> pipes;
     int score;
-    bool isGameOver;
+    bool isGameOver; // 完全保留，不做任何修改
+    void startGame();
 };
 
 #endif // GAME_H
+
+#endif // GAME_H
+
