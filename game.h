@@ -6,6 +6,9 @@
 #include <QTimer>
 #include "bird.h"
 #include "pipe.h"
+#include <QElapsedTimer>
+#include <QGraphicsTextItem>
+#include <QElapsedTimer>
 
 class Game : public QGraphicsView {
     Q_OBJECT
@@ -20,17 +23,21 @@ private slots:
 private:
     QGraphicsScene* scene;
     QGraphicsTextItem* scoreText;
-    QTimer* countdownTimer;
-    int countdownValue;
-    QGraphicsTextItem* countdownText;
     Bird* bird;
     QTimer* timer;
     QGraphicsTextItem* startText;
-    int gameState;
-    QList<Pipe*> pipes;
     int score;
+    int gameState;
+    QTimer* countdownTimer;
+    int countdownValue;
+    QGraphicsTextItem* countdownText;
+    QList<Pipe*> pipes;
     bool isGameOver;
     void startGame();
+    QElapsedTimer fpsTimer;
+    int frameCount = 0;
+    QGraphicsTextItem* fpsText = nullptr;
 };
 
 #endif // GAME_H
+
