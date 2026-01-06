@@ -15,10 +15,14 @@ public:
     void restartGame();
 private slots:
     void gameLoop();
+    void updateCountdown();
 
 private:
     QGraphicsScene* scene;
     QGraphicsTextItem* scoreText;
+    QTimer* countdownTimer;
+    int countdownValue;
+    QGraphicsTextItem* countdownText;
     Bird* bird;
     QTimer* timer;
     QGraphicsTextItem* startText;
@@ -30,5 +34,3 @@ private:
 };
 
 #endif // GAME_H
-
-
