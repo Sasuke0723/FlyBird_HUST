@@ -3,6 +3,8 @@
 #include <QGraphicsTextItem>
 #include <QIcon>
 #include <QFont>
+// 新增：引入颜色头文件（仅用于设置文字半透明，不修改其他逻辑）
+#include <QColor>
 
 Game::Game(QWidget* parent) : QGraphicsView(parent), score(0), gameState(0) {
     scene = new QGraphicsScene(this);
@@ -46,6 +48,44 @@ Game::Game(QWidget* parent) : QGraphicsView(parent), score(0), gameState(0) {
     startText->setPos(width()/2 - startText->boundingRect().width()/2,
                       height()/2 - 30);
     scene->addItem(startText);
+
+    // ========== 仅新增：6个制作人名字竖向显示（不修改其他任何代码） ==========
+    // 1. 定义6个制作人名字列表
+    QStringList producerNames = {
+        "史喆元",
+        "黄骊文",
+        "吴钟荣",
+        "曹灿",
+        "宋正阳",
+        "熊圣洲"
+    };
+
+    // 2. 配置名字文字样式（适配中文、半透明）
+    QFont producerFont("Microsoft YaHei", 18, QFont::Bold); // 微软雅黑+加粗
+    QColor textColor(255, 255, 255, 200); // 白色半透明（不遮挡游戏元素）
+
+    // 3. 计算排列参数（竖向排列、右对齐）
+    int nameSpacing = 32; // 名字间距（适配18号字体，避免重叠）
+    int startY = this->height() - 30; // 第一个名字的初始Y坐标（窗口底部）
+
+    // 4. 循环创建每个名字的文本项
+    for (int i = 0; i < producerNames.size(); ++i) {
+        QGraphicsTextItem* producerText = new QGraphicsTextItem(producerNames[i]);
+
+        // 设置样式
+        producerText->setZValue(0); // 层级低于分数/小鸟，不遮挡核心元素
+        producerText->setDefaultTextColor(textColor);
+        producerText->setFont(producerFont);
+
+        // 计算坐标：右对齐（X=窗口宽度-文字宽度-内边距），竖向排列（Y递减）
+        qreal textX = this->width() - producerText->boundingRect().width() - 10; // 右内边距10px
+        qreal textY = startY - (i * nameSpacing); // 向上排列
+
+        // 添加到场景
+        producerText->setPos(textX, textY);
+        scene->addItem(producerText);
+    }
+    // ========== 制作人名字绘制结束 ==========
 
     // 初始状态为等待开始，定时器不启动
     timer->stop();
