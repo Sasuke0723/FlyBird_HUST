@@ -21,7 +21,6 @@ object_script.*.Debug
 *.qbs.user
 *.qbs.user.*
 *.moc
-build/
 moc_*.cpp
 moc_*.h
 qrc_*.cpp
@@ -53,4 +52,3 @@ compile_commands.json
 *creator.user*
 
 *_qmlcache.qrc
-.vs/
